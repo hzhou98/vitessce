@@ -1205,13 +1205,35 @@ class Spatial extends AbstractSpatialOrScatterplot {
     // since selections is one of its `updateTriggers`.
     // Reference: https://github.com/hms-dbmi/viv/blob/ad86d0f/src/layers/MultiscaleImageLayer/MultiscaleImageLayer.js#L127
     let selections;
+    // Lazy channel loading: Viv fetches a raster for EVERY entry in
+    // `selections`, regardless of `channelsVisible` (which only gates
+    // rendering). Multi-channel images are chunked per-channel, so we only
+    // put currently-visible channels into `selections` — a hidden channel
+    // then costs zero network until the user toggles it on in the layer
+    // controller, at which point it joins `selections` and Viv loads it.
+    // (RGB images are 3 interleaved channels always loaded together.)
+    const isChannelVisible = cScope => (
+      visible && channelCoordination[cScope][CoordinationType.SPATIAL_CHANNEL_VISIBLE]
+    );
+    let renderChannelScopes = isRgb
+      ? channelScopes
+      : channelScopes.filter(isChannelVisible);
+    // Guard the all-hidden case: Viv needs a non-empty selection to build a
+    // valid layer. Keep one channel selected but rendered invisible, so the
+    // layer paints nothing yet stays well-formed.
+    let forceAllHidden = false;
+    if (!isRgb && renderChannelScopes.length === 0) {
+      renderChannelScopes = channelScopes.slice(0, 1);
+      forceAllHidden = true;
+    }
+
     // If RGB, we ignore the channelScopes and use RGB channels (R=0, G=1, B=2).
     const nextLoaderSelection = isRgb ? ([0, 1, 2])
       .map(targetC => filterSelection(data, {
         z: targetZ,
         t: targetT,
         c: targetC,
-      })) : channelScopes
+      })) : renderChannelScopes
       .map(cScope => filterSelection(data, {
         z: targetZ,
         t: targetT,
@@ -1231,7 +1253,7 @@ class Spatial extends AbstractSpatialOrScatterplot {
       [255, 0, 0],
       [0, 255, 0],
       [0, 0, 255],
-    ]) : channelScopes.map(cScope => (
+    ]) : renderChannelScopes.map(cScope => (
       channelCoordination[cScope][CoordinationType.SPATIAL_CHANNEL_COLOR]
     ));
     // TODO: figure out how to initialize the channel windows in the loader.
@@ -1240,7 +1262,7 @@ class Spatial extends AbstractSpatialOrScatterplot {
       [0, 255],
       [0, 255],
       [0, 255],
-    ]) : channelScopes.map(cScope => (
+    ]) : renderChannelScopes.map(cScope => (
       channelCoordination[cScope][CoordinationType.SPATIAL_CHANNEL_WINDOW]
       || ([0, 255])
     ));
@@ -1250,9 +1272,10 @@ class Spatial extends AbstractSpatialOrScatterplot {
       visible && true,
       visible && true,
       visible && true,
-    ]) : channelScopes.map(cScope => (
-      // Layer visible AND channel visible
-      visible && channelCoordination[cScope][CoordinationType.SPATIAL_CHANNEL_VISIBLE]
+    ]) : renderChannelScopes.map(() => (
+      // renderChannelScopes already contains only visible channels (unless
+      // the all-hidden guard forced one in, which stays invisible).
+      !forceAllHidden
     ));
 
     const autoTargetResolution = imageWrapperInstance.getAutoTargetResolution();

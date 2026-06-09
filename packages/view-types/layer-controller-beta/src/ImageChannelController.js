@@ -60,7 +60,12 @@ export default function ImageChannelController(props) {
   }
 
   const minMaxQuery = useQuery({
-    enabled: Boolean(image?.getData()) && !isLoading,
+    // Only compute the channel's min/max contrast domain when it is visible.
+    // getMultiSelectionStats loads a coarse raster for this channel, so doing
+    // it for hidden channels would fetch every channel's data on open even
+    // though only the visible ones render. When the user toggles a channel on,
+    // this enables and loads its domain then (lazy).
+    enabled: Boolean(image?.getData()) && !isLoading && visible,
     structuralSharing: false,
     queryKey: ['minMaxDomain', image?.getName(), targetT, targetC, is3dMode ? 0 : targetZ, is3dMode],
     queryFn: async (ctx) => {
