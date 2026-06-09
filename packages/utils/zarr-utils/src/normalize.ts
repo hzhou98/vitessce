@@ -97,7 +97,14 @@ export function zarrOpenRoot(url: string, fileType: null | string, opts?: ZarrOp
     store = ReferenceStore.fromSpec(referenceSpecPromise,
       { target: url, overrides: opts?.requestInit });
   } else {
-    store = new RelaxedFetchStore(url, { overrides: opts?.requestInit });
+    // useSuffixRequest: issue a single `Range: bytes=-N` GET for suffix reads
+    // (parquet footer/tail) instead of a HEAD followed by a range GET. Halves
+    // the request count for tiled-parquet metadata probing and removes the
+    // extra round-trip. Supported by stMINER's static server, S3, and most CDNs.
+    store = new RelaxedFetchStore(url, {
+      overrides: opts?.requestInit,
+      useSuffixRequest: true,
+    });
   }
 
   // Wrap remote stores in a cache
