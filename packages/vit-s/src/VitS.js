@@ -93,6 +93,13 @@ export function VitS(props) {
     uid = null,
     styleContainer,
     remountOnUidChange = true,
+    // Optional: a partial coordination space ({ parameter: { scope: value } })
+    // that an embedding parent can push to update coordination values IN PLACE
+    // (via setCoordinationValue) without changing `config` — so it does not
+    // remount the grid or recreate loaders. Use a stable config.uid so the
+    // config-replace on re-render is a no-op for the store. Pass a NEW object
+    // each time to trigger application.
+    controlledCoordination = null,
     viewTypes: viewTypesProp,
     fileTypes: fileTypesProp,
     jointFileTypes: jointFileTypesProp,
@@ -341,6 +348,7 @@ export function VitS(props) {
                   fileTypes={fileTypes}
                   coordinationTypes={coordinationTypes}
                   config={configOrWarning}
+                  controlledCoordination={controlledCoordination}
                   rowHeight={rowHeight}
                   height={height}
                   theme={theme}
