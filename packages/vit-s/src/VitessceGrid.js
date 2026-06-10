@@ -48,6 +48,7 @@ export default function VitessceGrid(props) {
     configKey,
     rowHeight: initialRowHeight,
     config,
+    controlledCoordination,
     theme,
     height,
     isBounded,
@@ -110,6 +111,30 @@ export default function VitessceGrid(props) {
     setLoaders(newLoaders);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [success, configKey]);
+
+  // Apply parent-pushed coordination updates IN PLACE. `controlledCoordination`
+  // is a partial coordination space ({ parameter: { scope: value } }); for each
+  // entry we call setCoordinationValue, which mutates only that value in the
+  // store. Because this does NOT touch `config`/`configKey`, it neither
+  // remounts the grid nor recreates loaders — so e.g. a featureSelection change
+  // updates the overlaid points (and the per-gene rows) with no reload and no
+  // canvas teardown. The parent passes a new object to trigger this; with a
+  // stable config.uid the accompanying config-replace is a store no-op.
+  useEffect(() => {
+    if (!success || !controlledCoordination) return;
+    const { setCoordinationValue } = viewConfigStoreApi.getState();
+    Object.entries(controlledCoordination).forEach(([parameter, scopes]) => {
+      if (!scopes) return;
+      Object.entries(scopes).forEach(([scope, value]) => {
+        setCoordinationValue({
+          parameter,
+          value,
+          coordinationScopes: { [parameter]: scope },
+        });
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controlledCoordination]);
 
   return (
     <div

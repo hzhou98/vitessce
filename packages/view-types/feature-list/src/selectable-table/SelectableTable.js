@@ -77,7 +77,16 @@ export default function SelectableTable(props) {
   // Callback function to update the `selectedRows` state.
   const onSelectRow = useCallback((value, checked) => {
     if (checked || allowUncheck) {
-      if (!isCheckingMultiple
+      if (allowMultiple) {
+        // Multi-select: a plain click toggles the row in/out of the selection
+        // (no modifier key required). So e.g. clicking a gene in the feature
+        // list adds it back rather than replacing the whole selection.
+        setSelectedRows(
+          checked
+            ? union(selectedRows || [], [value])
+            : difference(selectedRows || [], [value]),
+        );
+      } else if (!isCheckingMultiple
         && (checked || (!checked && allowMultiple && selectedRows.length > 1))
       ) {
         setSelectedRows([value]);
